@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Odontológica</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gestor de Citas Odontológicas</h1>
+        <form id="form-usuario" class="form-block">
+            <input type="text" id="nombre" name="nombre" placeholder="Nombre del paciente" required>
+            <input type="text" id="documento" name="documento" placeholder="Documento" required>
+            <input type="tel" id="telefono" name="telefono" placeholder="Teléfono" required>
+            <input type="email" id="correo" name="correo" placeholder="Correo electrónico" required>
+            <button type="submit" class="btn-principal"><i class="fa-solid fa-user-plus"></i> Registrar Paciente</button>
+        </form>
+        <form id="form-cita" class="form-block" style="display:none;">
+            <input type="date" id="fecha" name="fecha" placeholder="Fecha de la cita" required>
+            <input type="time" id="hora" name="hora" placeholder="Hora de la cita" required>
+            <input type="text" id="odontologo" name="odontologo" placeholder="Odontólogo" required>
+            <button type="submit" class="btn-principal"><i class="fa-solid fa-calendar-plus"></i> Agendar Cita</button>
+        </form>
+    <h2>Listado de Citas</h2>
+    <ul id="listar-citas"></ul>
+    </div>
+    <div id="toast" class="hidden" style="position:fixed;bottom:20px;right:20px;z-index:9999;padding:16px;border-radius:8px;min-width:200px;text-align:center;"></div>
+    <style>
+        .toast-success { background: #4caf50; color: #fff; }
+        .toast-error { background: #f44336; color: #fff; }
+        .hidden { display: none; }
+        .form-block { margin-bottom: 24px; }
+        .btn-principal { background: #1976d2; color: #fff; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; }
+        .btn-principal:hover { background: #1565c0; }
+    </style>
+    <script src="script.js"></script>
+</body>
+</html>
