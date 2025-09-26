@@ -1,155 +1,150 @@
 // Variables globales
-let pacienteId = null;
+let pacienteSeleccionado = null;
 
-// Obtener elementos del DOM con los IDs correctos del HTML
+// Elementos del DOM
 const formUsuario = document.getElementById("form-usuario");
+const moduloRegistro = document.getElementById("modulo-registro");
+const moduloAgendar = document.getElementById("modulo-agendar");
+const buscarPacienteInput = document.getElementById("buscar-paciente");
+const listaPacientes = document.getElementById("lista-pacientes");
 const formCita = document.getElementById("form-cita");
 const listarCitas = document.getElementById("listar-citas");
+const moduloCitas = document.getElementById("modulo-citas");
 
-// Función para mostrar toast
-function mostrarToast(mensaje, esExito) {
+// Toast con Tailwind
+function mostrarToast(mensaje, exito = true) {
     const toast = document.getElementById("toast");
     toast.textContent = mensaje;
-    toast.className = esExito ? "toast-success" : "toast-error";
+    toast.className = `fixed bottom-5 right-5 z-50 px-6 py-4 rounded-lg min-w-[200px] text-center ${exito ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`;
     toast.classList.remove("hidden");
-    
     setTimeout(() => {
         toast.classList.add("hidden");
     }, 3000);
 }
 
-// Crear usuario/paciente
+// Registrar paciente
 formUsuario.addEventListener("submit", async (e) => {
     e.preventDefault();
-    
     const formData = new FormData(formUsuario);
-    
-    // Debug: mostrar datos en consola
-    console.log("Enviando datos del paciente:");
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
-    
     try {
         const response = await fetch("crear_paciente.php", {
             method: "POST",
             body: formData
         });
-        
-        console.log("Status de respuesta:", response.status);
-        
-        // Verificar si la respuesta es OK
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
-        }
-        
-        // Obtener el texto de la respuesta primero
-        const responseText = await response.text();
-        console.log("Respuesta cruda:", responseText);
-        
-        // Intentar parsear como JSON
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (jsonError) {
-            console.error("Error al parsear JSON:", jsonError);
-            console.error("Respuesta recibida:", responseText);
-            throw new Error("El servidor no devolvió un JSON válido");
-        }
-        
-        console.log("Datos parseados:", data);
-        
+        const data = await response.json();
         if (data.success) {
-            mostrarToast(data.message, true);
-            pacienteId = data.id;
-            formCita.style.display = "block";
+            mostrarToast("Paciente registrado exitosamente", true);
             formUsuario.reset();
-            console.log("Paciente creado con ID:", pacienteId);
+            moduloRegistro.classList.add("hidden");
+            moduloAgendar.classList.remove("hidden");
+            cargarPacientes();
         } else {
-            mostrarToast(data.message || "Error desconocido al registrar paciente", false);
+            mostrarToast(data.message || "Error al registrar paciente", false);
         }
-        
     } catch (err) {
-        console.error("Error completo:", err);
-        mostrarToast("Error al registrar paciente: " + err.message, false);
+        mostrarToast("Error al registrar paciente", false);
     }
 });
 
-// Agendar cita
+// Buscar y mostrar pacientes
+async function cargarPacientes(filtro = "") {
+    try {
+        const response = await fetch("listar_pacientes.php");
+        const pacientes = await response.json();
+        listaPacientes.innerHTML = "";
+        let filtrados = pacientes;
+        if (filtro) {
+            filtrados = pacientes.filter(p =>
+                p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+                p.documento.toLowerCase().includes(filtro.toLowerCase())
+            );
+        }
+        if (filtrados.length === 0) {
+            listaPacientes.innerHTML = '<li class="text-gray-400 px-2 py-1">No se encontraron pacientes</li>';
+            return;
+        }
+        filtrados.forEach(p => {
+            const li = document.createElement("li");
+            li.className = "hover:bg-blue-50 cursor-pointer px-2 py-1";
+            li.textContent = `${p.nombre} (${p.documento})`;
+            li.onclick = () => seleccionarPaciente(p);
+            listaPacientes.appendChild(li);
+        });
+    } catch (err) {
+        listaPacientes.innerHTML = '<li class="text-red-500 px-2 py-1">Error al cargar pacientes</li>';
+    }
+}
+
+buscarPacienteInput.addEventListener("input", (e) => {
+    cargarPacientes(e.target.value);
+});
+
+function seleccionarPaciente(paciente) {
+    pacienteSeleccionado = paciente;
+    document.getElementById("paciente_id").value = paciente.id;
+    formCita.classList.remove("hidden");
+    mostrarToast(`Paciente seleccionado: ${paciente.nombre}`, true);
+}
+
+// Agendar cita para paciente seleccionado
 formCita.addEventListener("submit", async (e) => {
     e.preventDefault();
-    
-    if (!pacienteId) {
-        mostrarToast("Primero debe registrar un paciente", false);
+    if (!pacienteSeleccionado) {
+        mostrarToast("Seleccione un paciente primero", false);
         return;
     }
-    
     const formData = new FormData(formCita);
-    formData.append('paciente_id', pacienteId);
-    
-    console.log("Enviando datos de la cita:");
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
-    
+    formData.set('paciente_id', pacienteSeleccionado.id);
     try {
         const response = await fetch("crear_cita.php", {
             method: "POST",
             body: formData
         });
-        
-        const responseText = await response.text();
-        console.log("Respuesta de cita:", responseText);
-        
-        const data = JSON.parse(responseText);
-        
+        const data = await response.json();
         if (data.success) {
-            mostrarToast(data.message, true);
+            mostrarToast("Cita agendada exitosamente", true);
             formCita.reset();
-            formCita.style.display = "none";
-            pacienteId = null;
-            cargarCitas(); // Recargar la lista de citas
+            formCita.classList.add("hidden");
+            pacienteSeleccionado = null;
+            cargarCitas();
         } else {
             mostrarToast(data.message || "Error al agendar cita", false);
         }
-        
     } catch (err) {
-        console.error("Error:", err);
-        mostrarToast("Error al agendar cita: " + err.message, false);
+        mostrarToast("Error al agendar cita", false);
     }
 });
 
-// Función para cargar y mostrar citas
+// Mostrar citas asignadas
 async function cargarCitas() {
     try {
         const response = await fetch("listar_citas.php");
         const citas = await response.json();
-        
-        if (listarCitas) {
-            listarCitas.innerHTML = "";
-            
-            if (citas.length === 0) {
-                listarCitas.innerHTML = "<li>No hay citas registradas</li>";
-                return;
-            }
-            
-            citas.forEach(cita => {
-                const li = document.createElement("li");
-                li.innerHTML = `
-                    <strong>${cita.paciente_nombre}</strong> - 
-                    ${cita.fecha} a las ${cita.hora} - 
-                    Dr. ${cita.odontologo} 
-                    <span class="estado-${cita.estado}">(${cita.estado})</span>
-                `;
-                listarCitas.appendChild(li);
-            });
+        listarCitas.innerHTML = "";
+        if (!Array.isArray(citas) || citas.length === 0) {
+            listarCitas.innerHTML = '<li class="text-gray-400 px-2 py-1">No hay citas registradas</li>';
+            return;
         }
+        citas.forEach(cita => {
+            const li = document.createElement("li");
+            li.className = "flex flex-col md:flex-row md:items-center justify-between px-2 py-2 hover:bg-gray-50";
+            li.innerHTML = `
+                <span><span class="font-semibold text-blue-700">${cita.paciente || cita.paciente_nombre || ''}</span> - ${cita.fecha} a las ${cita.hora}</span>
+                <span class="text-sm text-gray-500">Dr. ${cita.odontologo} <span class="ml-2 px-2 py-1 rounded bg-blue-100 text-blue-700">${cita.estado || 'pendiente'}</span></span>
+            `;
+            listarCitas.appendChild(li);
+        });
     } catch (err) {
-        console.error("Error al cargar citas:", err);
+        listarCitas.innerHTML = '<li class="text-red-500 px-2 py-1">Error al cargar citas</li>';
     }
 }
 
-// Cargar citas al iniciar la página
+// Inicialización
 document.addEventListener("DOMContentLoaded", () => {
     cargarCitas();
+    cargarPacientes();
+    // Mostrar solo el módulo de registro al inicio
+    moduloRegistro.classList.remove("hidden");
+    moduloAgendar.classList.add("hidden");
+    formCita.classList.add("hidden");
 });

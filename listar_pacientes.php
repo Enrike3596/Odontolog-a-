@@ -1,16 +1,17 @@
+
 <?php
-header('Content-Type: application/json; charset=utf-8'); 
+header('Content-Type: application/json; charset=utf-8');
 include 'conexionDB.php';
 
 $sql = "SELECT * FROM pacientes";
-$result = pg_query($conn, $sql);
+$result = $conn->query($sql);
 
 $pacientes = [];
-if ($result && pg_num_rows($result) > 0) {
-    while ($row = pg_fetch_assoc($result)) {
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
         $pacientes[] = $row;
     }
 }
 echo json_encode($pacientes, JSON_UNESCAPED_UNICODE);
-// No se cierra la conexión explícitamente con pg_connect
+// No se cierra la conexión explícitamente con MySQLi
 ?>

@@ -4,12 +4,13 @@ include 'conexionDB.php';
 
 $pacientes = [];
 $sql = "SELECT * FROM pacientes ORDER BY id DESC";
-$result = pg_query($conn, $sql);
-if ($result && pg_num_rows($result) > 0) {
-    while($row = pg_fetch_assoc($result)) {
+$result = $conn->query($sql);
+if ($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
         $pacientes[] = $row;
     }
 }
 echo json_encode($pacientes, JSON_UNESCAPED_UNICODE);
 // No se cierra la conexión explícitamente con pg_connect
+// No se cierra la conexión explícitamente con MySQLi
 ?>

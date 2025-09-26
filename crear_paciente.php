@@ -17,32 +17,32 @@ try {
     
     // Incluir conexión
     include 'conexionDB.php';
-    
+
     // Verificar si la conexión se estableció
-    if (!isset($conn)) {
+    if (!isset($conn) || $conn->connect_error) {
         throw new Exception("No se pudo establecer la conexión a la base de datos");
     }
-    
+
     // Verificar método HTTP
     if ($_SERVER["REQUEST_METHOD"] !== "POST") {
         throw new Exception("Método no permitido. Se requiere POST, recibido: " . $_SERVER["REQUEST_METHOD"]);
     }
-    
+
     // Debug: mostrar datos recibidos
     $response["debug_info"]["post_data"] = $_POST;
     $response["debug_info"]["method"] = $_SERVER["REQUEST_METHOD"];
-    
+
     // Verificar que lleguen datos POST
     if (empty($_POST)) {
         throw new Exception("No se recibieron datos POST");
     }
-    
+
     // Obtener y sanitizar datos
     $nombre    = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
     $documento = isset($_POST['documento']) ? trim($_POST['documento']) : '';
     $telefono  = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
     $correo    = isset($_POST['correo']) ? trim($_POST['correo']) : '';
-    
+
     $response["debug_info"]["datos_recibidos"] = [
         "nombre" => $nombre,
         "documento" => $documento, 
@@ -63,30 +63,33 @@ try {
     if (empty($correo)) {
         throw new Exception("El campo correo es obligatorio");
     }
-    
+
     // Validar formato de correo
     if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
         throw new Exception("El formato del correo electrónico no es válido");
     }
 
     // Verificar si ya existe el documento
-    $sql_check = "SELECT id FROM pacientes WHERE documento = $1";
-    $result_check = pg_query_params($conn, $sql_check, [$documento]);
-    if (!$result_check) {
-        throw new Exception("Error al verificar documento: " . pg_last_error($conn));
-    }
-    if (pg_num_rows($result_check) > 0) {
+    $sql_check = "SELECT id FROM pacientes WHERE documento = ?";
+    $stmt_check = $conn->prepare($sql_check);
+    $stmt_check->bind_param("s", $documento);
+    $stmt_check->execute();
+    $result_check = $stmt_check->get_result();
+    if ($result_check->num_rows > 0) {
         throw new Exception("Ya existe un paciente registrado con el documento: " . $documento);
     }
+    $stmt_check->close();
 
     // Insertar nuevo paciente
-    $sql_insert = "INSERT INTO pacientes (nombre, documento, telefono, correo) VALUES ($1, $2, $3, $4) RETURNING id";
-    $result_insert = pg_query_params($conn, $sql_insert, [$nombre, $documento, $telefono, $correo]);
-    if (!$result_insert) {
-        throw new Exception("Error al insertar paciente: " . pg_last_error($conn));
+    $sql_insert = "INSERT INTO pacientes (nombre, documento, telefono, correo) VALUES (?, ?, ?, ?)";
+    $stmt_insert = $conn->prepare($sql_insert);
+    $stmt_insert->bind_param("ssss", $nombre, $documento, $telefono, $correo);
+    if (!$stmt_insert->execute()) {
+        throw new Exception("Error al insertar paciente: " . $stmt_insert->error);
     }
-    $row = pg_fetch_assoc($result_insert);
-    $nuevo_id = $row['id'];
+    $nuevo_id = $stmt_insert->insert_id;
+    $stmt_insert->close();
+
     $response["success"] = true;
     $response["message"] = "Paciente registrado exitosamente";
     $response["id"] = $nuevo_id;

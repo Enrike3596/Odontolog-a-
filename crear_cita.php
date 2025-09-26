@@ -21,25 +21,29 @@ try {
         }
 
         // Verificar que el paciente existe
-        $sql_check = "SELECT id FROM pacientes WHERE id = $1";
-        $result_check = pg_query_params($conn, $sql_check, [$paciente_id]);
-        if (!$result_check) {
-            throw new Exception("Error al verificar paciente: " . pg_last_error($conn));
-        }
-        if (pg_num_rows($result_check) === 0) {
+        $sql_check = "SELECT id FROM pacientes WHERE id = ?";
+        $stmt_check = $conn->prepare($sql_check);
+        $stmt_check->bind_param("i", $paciente_id);
+        $stmt_check->execute();
+        $result_check = $stmt_check->get_result();
+        if ($result_check->num_rows === 0) {
             throw new Exception("El paciente no existe");
         }
+        $stmt_check->close();
 
         // Insertar la cita
-        $sql_insert = "INSERT INTO citas (paciente_id, fecha, hora, odontologo) VALUES ($1, $2, $3, $4) RETURNING id";
-        $result_insert = pg_query_params($conn, $sql_insert, [$paciente_id, $fecha, $hora, $odontologo]);
-        if (!$result_insert) {
-            throw new Exception("Error al agendar la cita: " . pg_last_error($conn));
+        $sql_insert = "INSERT INTO citas (paciente_id, fecha, hora, odontologo) VALUES (?, ?, ?, ?)";
+        $stmt_insert = $conn->prepare($sql_insert);
+        $stmt_insert->bind_param("isss", $paciente_id, $fecha, $hora, $odontologo);
+        if (!$stmt_insert->execute()) {
+            throw new Exception("Error al agendar la cita: " . $stmt_insert->error);
         }
-        $row = pg_fetch_assoc($result_insert);
+        $nuevo_id = $stmt_insert->insert_id;
+        $stmt_insert->close();
+
         $response["success"] = true;
         $response["message"] = "Cita agendada exitosamente";
-        $response["id"] = $row['id'];
+        $response["id"] = $nuevo_id;
     } else {
         throw new Exception("Método no permitido");
     }
@@ -48,5 +52,4 @@ try {
 }
 
 echo json_encode($response, JSON_UNESCAPED_UNICODE);
-// No se cierra la conexión explícitamente con pg_connect
 ?>

@@ -7,14 +7,13 @@ try {
             FROM citas c 
             INNER JOIN pacientes p ON c.paciente_id = p.id 
             ORDER BY c.fecha DESC, c.hora DESC";
-            
 
-    $result = pg_query($conn, $sql);
+    $result = $conn->query($sql);
     if ($result === false) {
-        throw new Exception("Error en la consulta: " . pg_last_error($conn));
+        throw new Exception("Error en la consulta: " . $conn->error);
     }
     $citas = [];
-    while ($row = pg_fetch_assoc($result)) {
+    while ($row = $result->fetch_assoc()) {
         $citas[] = $row;
     }
     echo json_encode($citas, JSON_UNESCAPED_UNICODE);
@@ -26,5 +25,5 @@ try {
     ]);
 }
 
-// No se cierra la conexión explícitamente con pg_connect
+// No se cierra la conexión explícitamente con MySQLi
 ?>

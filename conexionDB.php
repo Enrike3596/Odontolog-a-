@@ -1,24 +1,47 @@
-
 <?php
 // Activar reporte de errores
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Datos de conexión para PostgreSQL
-$host = 'localhost';
-$port = '5432';
-$dbname = 'clinica_db'; // Cambia si tu base tiene otro nombre
-$user = 'postgres'; // Cambia por tu usuario de PostgreSQL
-$password = '3596'; // Cambia por tu contraseña
-
-$conn = pg_connect("host=$host port=$port dbname=$dbname user=$user password=$password");
-
-if (!$conn) {
+// Verificar si la extensión MySQLi está disponible
+if (!extension_loaded('mysqli')) {
+    $error_msg = "La extensión MySQLi no está instalada o habilitada en PHP.";
+    $error_msg .= " Verifica tu configuración de php.ini.";
     if (!headers_sent()) {
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode([
             "success" => false,
-            "message" => "Error de conexión a la base de datos PostgreSQL: " . pg_last_error(),
+            "message" => $error_msg,
+            "debug_info" => [
+                "php_version" => phpversion(),
+                "loaded_extensions" => get_loaded_extensions(),
+                "error_type" => "missing_extension"
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    } else {
+        die($error_msg);
+    }
+}
+
+// Datos de conexión para MySQL
+$host = 'localhost';
+$user = 'root';
+$password = '';
+$dbname = 'clinica_db';
+$port = 3306;
+
+// Intentar conectar
+$conn = new mysqli($host, $user, $password, $dbname, $port);
+
+if ($conn->connect_error) {
+    $error_details = $conn->connect_error;
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            "success" => false,
+            "message" => "Error de conexión a MySQL",
+            "error_details" => $error_details,
             "debug_info" => [
                 "host" => $host,
                 "port" => $port,
@@ -28,8 +51,13 @@ if (!$conn) {
         ], JSON_UNESCAPED_UNICODE);
         exit;
     } else {
-        die("Error de conexión a PostgreSQL: " . pg_last_error());
+        die("Error de conexión a MySQL: " . $error_details);
     }
 }
-// Conexión exitosa
+
+// Establecer codificación UTF-8
+$conn->set_charset('utf8');
+
+// Conexión exitosa - opcional: log para debug
+// error_log("Conexión MySQL exitosa - " . date('Y-m-d H:i:s'));
 ?>
